@@ -1,9 +1,7 @@
 
 package org.usfirst.frc.team346.robot;
 
-import org.usfirst.frc.team346._Controllers.GyroPIDSource;
 import org.usfirst.frc.team346._Controllers.JaguarPositionPIDSource;
-
 import edu.wpi.first.wpilibj.BuiltInAccelerometer;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.IterativeRobot;
@@ -31,21 +29,28 @@ public class Robot extends IterativeRobot {
 	SmartDashboard smartDash;
     SendableChooser autoChooser;
     static Preferences prefs;
+    public Gyro gyro;
+    public Gyro temp;
+    public Accelerometer accel;
     
     public void robotInit() {
     	autoChooser = new SendableChooser();
         smartDash = new SmartDashboard();
     	prefs = Preferences.getInstance();
+    	gyro = new Gyro(0);
+    	temp = new Gyro(1);
+    	accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
+    	gyro.reset();
+    	gyro.initGyro();
     	Motors.prefs = prefs;
     	Motors.initMotors();
-    	
     }
 
     /**
      * This function is called periodically during autonomous
      */
     public void autonomousPeriodic() {
-
+    	
     }
 
     /**
@@ -54,9 +59,13 @@ public class Robot extends IterativeRobot {
     @SuppressWarnings("static-access")
 	public void teleopPeriodic() {
     	Motors.controllerDrive();
-    	smartDash.putNumber("Left Encoder", Motors.leftDrive.getSpeed());
-    	smartDash.putNumber("Right Encoder", Motors.rightDrive.getSpeed());
-    	smartDash.putNumber("Trans Encoder", Motors.xDrive.getSpeed());
+    	smartDash.putNumber("Accel Y", accel.getY());
+    	smartDash.putNumber("Accel X", accel.getX());
+    	smartDash.putNumber("Gyro Angle", gyro.getAngle());
+    	smartDash.putNumber("Gyro Rate", gyro.getRate());
+    	smartDash.putNumber("Left Encoder", Motors.leftDrive.output.getSpeed());
+    	smartDash.putNumber("Right Encoder", Motors.rightDrive.output.getSpeed());
+    	smartDash.putNumber("Trans Encoder", Motors.xDrive.output.getSpeed());
     }
     
     /**

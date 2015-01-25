@@ -2,6 +2,8 @@ package org.usfirst.frc.team346.robot;
 
 import org.usfirst.frc.team346._Controllers.PairedDrive;
 import org.usfirst.frc.team346._Controllers._CANTalon;
+import org.usfirst.frc.team346._Mixers.MixSpeedController;
+import org.usfirst.frc.team346._Mixers.NormalizationMixer;
 
 import edu.wpi.first.wpilibj.CANJaguar;
 import edu.wpi.first.wpilibj.CANTalon.ControlMode;
@@ -11,9 +13,10 @@ import edu.wpi.first.wpilibj.TalonSRX;
 
 public class Motors {
 	static Preferences prefs;
-    public static _CANTalon leftDrive;
-    public static _CANTalon rightDrive;
-    public static _CANTalon xDrive;
+    public static MixSpeedController<_CANTalon> leftDrive;
+    public static MixSpeedController<_CANTalon> rightDrive;
+    public static MixSpeedController<_CANTalon> xDrive;
+    public static NormalizationMixer driveMixer, transMixer;
     public static PairedDrive yPairedDrive;
     public static PairedDrive yawPairedDrive;
     
@@ -32,27 +35,38 @@ public class Motors {
     static double xCurrentD;
     
     public static void initMotors() {
-    	leftDrive = new _CANTalon(6);
-    	rightDrive = new _CANTalon(4);
-    	xDrive = new _CANTalon(5);
+    	driveMixer = new NormalizationMixer();
+    	transMixer = new NormalizationMixer();
     	
-    	leftDrive.changeControlMode(ControlMode.Speed);
-    	leftDrive.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-    	leftDrive.setPID(prefs.getDouble("P",0), prefs.getDouble("I", 0), prefs.getDouble("D",0));
-    	leftDrive.enableControl();
+    	leftDrive = new MixSpeedController<_CANTalon>(new _CANTalon(6));
+    	rightDrive = new MixSpeedController<_CANTalon>(new _CANTalon(4));
+    	xDrive = new MixSpeedController<_CANTalon>(new _CANTalon(5));
     	
-    	rightDrive.changeControlMode(ControlMode.Speed);
-    	rightDrive.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-    	rightDrive.setPID(prefs.getDouble("P",0), prefs.getDouble("I", 0), prefs.getDouble("D",0));
-    	rightDrive.enableControl();
+    	leftDrive.output.changeControlMode(ControlMode.Speed);
+    	leftDrive.output.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+    	leftDrive.output.setPID(prefs.getDouble("P",0), prefs.getDouble("I", 0), prefs.getDouble("D",0));
+    	leftDrive.output.enableControl();
+    	leftDrive.setScale(1000);
     	
-    	xDrive.changeControlMode(ControlMode.Speed);
-    	xDrive.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-    	xDrive.setPID(prefs.getDouble("xP",0), prefs.getDouble("xI", 0), prefs.getDouble("xD",0));
-    	xDrive.enableControl();
+    	rightDrive.output.changeControlMode(ControlMode.Speed);
+    	rightDrive.output.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+    	rightDrive.output.setPID(prefs.getDouble("P",0), prefs.getDouble("I", 0), prefs.getDouble("D",0));
+    	rightDrive.output.enableControl();
+    	rightDrive.setScale(1000);
     	
-    	leftDrive.setPosition(0);
-    	rightDrive.setPosition(0);
+    	driveMixer.addToMix(leftDrive,rightDrive);
+    	
+    	xDrive.output.changeControlMode(ControlMode.Speed);
+    	xDrive.output.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+    	xDrive.output.setPID(prefs.getDouble("xP",0), prefs.getDouble("xI", 0), prefs.getDouble("xD",0));
+    	System.err.println("xP: %d xI: %d, xD: %d" +  prefs.getDouble("xP",0) + " " + prefs.getDouble("xI", 0) + " " + prefs.getDouble("xD",0));
+    	xDrive.output.enableControl();
+    	xDrive.setScale(1000);
+    	
+    	transMixer.addToMix(xDrive);
+    	
+    	leftDrive.output.setPosition(0);
+    	rightDrive.output.setPosition(0);
     	
     	yPairedDrive = new PairedDrive(leftDrive,rightDrive);
     	yPairedDrive.slaveVoltage = false;
@@ -67,33 +81,42 @@ public class Motors {
         rightDrive.set(0);
     }
     
-    public static void controllerDrive() {
-		double currentP = prefs.getDouble("P", 0);
-		double currentI = prefs.getDouble("I", 0);
-		double currentD = prefs.getDouble("D", 0);
-		if(lastP !=  currentP || lastI != currentI || lastD != currentD){
-			leftDrive.setPID(currentP, currentI, currentD);
-			rightDrive.setPID(currentP, currentI, currentD);
-			lastP = currentP;
-			lastI = currentI;
-			lastD = currentD;
-		}
-		
-		xCurrentP = prefs.getDouble("P", 0);
-		double xCurrentI = prefs.getDouble("I", 0);
-		double xCurrentD = prefs.getDouble("D", 0);
-		if(lastP !=  xCurrentP || lastI != xCurrentI || lastD != xCurrentD){
-			xDrive.setPID(xCurrentP, xCurrentI, xCurrentD);
+    public static void checkXPID() {
+    	xCurrentP = prefs.getDouble("xP", 0);
+		xCurrentI = prefs.getDouble("xI", 0);
+		xCurrentD = prefs.getDouble("xD", 0);
+		if(xLastP !=  xCurrentP || xLastI != xCurrentI || xLastD != xCurrentD){
+			xDrive.output.setPID(xCurrentP, xCurrentI, xCurrentD);
 			xLastP = xCurrentP;
 			xLastI = xCurrentI;
 			xLastD = xCurrentD;
 		}
+    }
+    
+    public static void checkPID() {
+    	currentP = prefs.getDouble("P", 0);
+		currentI = prefs.getDouble("I", 0);
+		currentD = prefs.getDouble("D", 0);
+		if(lastP !=  currentP || lastI != currentI || lastD != currentD){
+			leftDrive.output.setPID(currentP, currentI, currentD);
+			rightDrive.output.setPID(currentP, currentI, currentD);
+			lastP = currentP;
+			lastI = currentI;
+			lastD = currentD;
+		}
+    }
+    
+    public static void controllerDrive() {
+		checkPID();
+		checkXPID();
     	
-    	leftDrive.set(Joysticks.getControllerLeftY() * -prefs.getDouble("yMult", 1000));
-    	rightDrive.set(Joysticks.getControllerRightY() * prefs.getDouble("yMult", 1000));
+    	leftDrive.set(-Joysticks.getControllerLeftY());
+    	rightDrive.set(Joysticks.getControllerRightY());
     	//yPairedDrive.set(Joysticks.getControllerRightY() * prefs.getDouble("JoyMult", 1000));
 		//yawPairedDrive.set(Joysticks.getControllerRightY() * prefs.getDouble("JoyMult", 1000));
-		xDrive.set((-Joysticks.getControllerLeftTrigger()+Joysticks.getControllerRightTrigger()) 
-				* prefs.getDouble("xMulti", 1000));
+		xDrive.set(-Joysticks.getControllerLeftTrigger()+Joysticks.getControllerRightTrigger());
+		System.err.println("Trans: " + -Joysticks.getControllerLeftTrigger()+Joysticks.getControllerRightTrigger());
+		driveMixer.apply();
+		transMixer.apply();
     }
 }
