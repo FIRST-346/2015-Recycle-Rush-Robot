@@ -74,6 +74,7 @@ public class Motors {
     	
     	yawPairedDrive = new PairedDrive(leftDrive,rightDrive);
     	yawPairedDrive.slaveVoltage = false;
+    	yawPairedDrive.setScale(1000);
     }
     
     public static void stopDriveMotors() {

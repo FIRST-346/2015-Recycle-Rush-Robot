@@ -2,6 +2,7 @@
 package org.usfirst.frc.team346.robot;
 
 import org.usfirst.frc.team346._Controllers.JaguarPositionPIDSource;
+
 import edu.wpi.first.wpilibj.BuiltInAccelerometer;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.IterativeRobot;
@@ -32,27 +33,58 @@ public class Robot extends IterativeRobot {
     public Gyro gyro;
     public Gyro temp;
     public Accelerometer accel;
+    public PIDController distanceController;
+    public PIDController headingController;
+    public PIDSource leftDistance;
+    public double initAngle;
+    public double hP;
+    public double hI;
+    public double hD;
     
-    public void robotInit() {
+    @SuppressWarnings("static-access")
+	public void robotInit() {
     	autoChooser = new SendableChooser();
         smartDash = new SmartDashboard();
     	prefs = Preferences.getInstance();
     	gyro = new Gyro(0);
-    	temp = new Gyro(1);
+    	initAngle = gyro.getAngle();
     	accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
     	gyro.reset();
     	gyro.initGyro();
     	Motors.prefs = prefs;
     	Motors.initMotors();
+    	//leftDistance = Motors.leftDrive.output.getPosition();
+    	//distanceController = new PIDController(.5,0,0,Motors.leftDrive.output.getPosition(),Motors.yPairedDrive);
     }
 
+    @SuppressWarnings("static-access")
+	public void autonomousInit() {
+    	if(headingController != null) {
+    		headingController.disable();
+    	}
+    	headingController = new PIDController(prefs.getDouble("hP", 0),prefs.getDouble("hI", 0),
+    			prefs.getDouble("hD", 0),gyro,Motors.yawPairedDrive);
+    	initAngle = gyro.getAngle();
+    	headingController.enable();
+    }
+    
     /**
      * This function is called periodically during autonomous
      */
-    public void autonomousPeriodic() {
-    	
+    @SuppressWarnings("static-access")
+	public void autonomousPeriodic() {
+    	smartDash.putNumber("PID Error", headingController.getError());
+    	smartDash.putNumber("PID Out", headingController.get());
+    	smartDash.putNumber("hP", headingController.getP());
+    	headingController.setSetpoint(initAngle);
+    	Motors.driveMixer.apply();
     }
-
+    
+    public void teleopInit() {
+    	if(headingController != null) {
+    		headingController.disable();
+    	}
+    }
     /**
      * This function is called periodically during operator control
      */
